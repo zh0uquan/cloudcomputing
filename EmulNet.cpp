@@ -72,8 +72,9 @@ EmulNet::~EmulNet() {}
 void *EmulNet::ENinit(Address *myaddr, short port) {
 	// Initialize data structures for this member
 	*(int *)(myaddr->addr) = emulnet.nextid++;
-    *(short *)(&myaddr->addr[4]) = 0;
-	return myaddr;
+  *(short *)(&myaddr->addr[4]) = 0;
+  // cout << (int) myaddr->addr[0] << endl;
+  return myaddr;
 }
 
 /**
@@ -89,18 +90,21 @@ int EmulNet::ENsend(Address *myaddr, Address *toaddr, char *data, int size) {
 	static char temp[2048];
 	int sendmsg = rand() % 100;
 
+  // drop if either over buffer or big msg size or random msg drop prob happens
 	if( (emulnet.currbuffsize >= ENBUFFSIZE) || (size + (int)sizeof(en_msg) >= par->MAX_MSG_SIZE) || (par->dropmsg && sendmsg < (int) (par->MSG_DROP_PROB * 100)) ) {
 		return 0;
 	}
 
 	em = (en_msg *)malloc(sizeof(en_msg) + size);
-	em->size = size;
+  //set the size of data string to the bytes after classs
+  em->size = size;
 
 	memcpy(&(em->from.addr), &(myaddr->addr), sizeof(em->from.addr));
 	memcpy(&(em->to.addr), &(toaddr->addr), sizeof(em->from.addr));
 	memcpy(em + 1, data, size);
 
-	emulnet.buff[emulnet.currbuffsize++] = em;
+  // add the msg address to buffer
+  emulnet.buff[emulnet.currbuffsize++] = em;
 
 	int src = *(int *)(myaddr->addr);
 	int time = par->getcurrtime();
@@ -111,7 +115,7 @@ int EmulNet::ENsend(Address *myaddr, Address *toaddr, char *data, int size) {
 	sent_msgs[src][time]++;
 
 	#ifdef DEBUGLOG
-		sprintf(temp, "Sending 4+%d B msg type %d to %d.%d.%d.%d:%d ", size-4, *(int *)data, toaddr->addr[0], toaddr->addr[1], toaddr->addr[2], toaddr->addr[3], *(short *)&toaddr->addr[4]);
+    sprintf(temp, "Sending 4+%d B msg type %d to %d.%d.%d.%d:%d ", size-4, *(int *)data, toaddr->addr[0], toaddr->addr[1], toaddr->addr[2], toaddr->addr[3], *(short *)&toaddr->addr[4]);
 	#endif
 
 	return size;
@@ -127,7 +131,8 @@ int EmulNet::ENsend(Address *myaddr, Address *toaddr, char *data, int size) {
  */
 int EmulNet::ENsend(Address *myaddr, Address *toaddr, string data) {
 	char * str = (char *) malloc(data.length() * sizeof(char));
-	memcpy(str, data.c_str(), data.size());
+  // copy data with null term to str
+  memcpy(str, data.c_str(), data.size());
 	int ret = this->ENsend(myaddr, toaddr, str, (data.length() * sizeof(char)));
 	free(str);
 	return ret;

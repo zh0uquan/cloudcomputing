@@ -77,7 +77,7 @@ public:
  * DESCRIPTION: This class defines an emulated network
  */
 class EmulNet
-{ 	
+{
 private:
 	Params* par;
 	int sent_msgs[MAX_NODES + 1][MAX_TIME];

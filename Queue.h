@@ -21,7 +21,8 @@ public:
 	virtual ~Queue() {}
 	static bool enqueue(queue<q_elt> *queue, void *buffer, int size) {
 		q_elt element(buffer, size);
-		queue->emplace(element);
+    // construct new object inplace 
+    queue->emplace(element);
 		return true;
 	}
 };

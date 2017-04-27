@@ -50,7 +50,7 @@ void Log::LOG(Address *addr, const char * str, ...) {
 	static int numwrites;
 	static char stdstring[30];
 	static char stdstring2[40];
-	static char stdstring3[40]; 
+	static char stdstring3[40];
 	static int dbg_opened=0;
 
 	if(dbg_opened != 639){
@@ -66,10 +66,11 @@ void Log::LOG(Address *addr, const char * str, ...) {
 		fp = fopen(stdstring2, "w");
 		fp2 = fopen(stdstring3, "w");
 
-		dbg_opened=639;
+		dbg_opened=639; // set log file opened
 	}
-	else 
+	else
 
+  // compose a string stored as C string in buffer
 	sprintf(stdstring, "%d.%d.%d.%d:%d ", addr->addr[0], addr->addr[1], addr->addr[2], addr->addr[3], *(short *)&addr->addr[4]);
 
 	va_start(vararglist, str);
@@ -91,12 +92,12 @@ void Log::LOG(Address *addr, const char * str, ...) {
 		fprintf(fp2, "\n %s", stdstring);
 		fprintf(fp2, "[%d] ", par->getcurrtime());
 
-		fprintf(fp2, buffer);
+		fprintf(fp2, "%s", buffer);
 	}
 	else{
 		fprintf(fp, "\n %s", stdstring);
 		fprintf(fp, "[%d] ", par->getcurrtime());
-		fprintf(fp, buffer);
+		fprintf(fp, "%s", buffer);
 
 	}
 

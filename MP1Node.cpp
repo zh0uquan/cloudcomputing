@@ -5,6 +5,7 @@
  * 				Definition of MP1Node class functions.
  **********************************/
 
+#include <typeinfo>
 #include "MP1Node.h"
 
 /*
@@ -43,7 +44,7 @@ int MP1Node::recvLoop() {
     	return false;
     }
     else {
-    	return emulNet->ENrecv(&(memberNode->addr), enqueueWrapper, NULL, 1, &(memberNode->mp1q));
+      return emulNet->ENrecv(&(memberNode->addr), enqueueWrapper, NULL, 1, &(memberNode->mp1q));
     }
 }
 
@@ -76,6 +77,8 @@ void MP1Node::nodeStart(char *servaddrstr, short servport) {
         exit(1);
     }
 
+      printAddress(&memberNode->addr);
+
     if( !introduceSelfToGroup(&joinaddr) ) {
         finishUpThisNode();
 #ifdef DEBUGLOG
@@ -102,14 +105,15 @@ int MP1Node::initThisNode(Address *joinaddr) {
 	memberNode->bFailed = false;
 	memberNode->inited = true;
 	memberNode->inGroup = false;
-    // node is up!
+  // node is up!
 	memberNode->nnb = 0;
 	memberNode->heartbeat = 0;
 	memberNode->pingCounter = TFAIL;
 	memberNode->timeOutCounter = -1;
-    initMemberListTable(memberNode);
 
-    return 0;
+  initMemberListTable(memberNode);
+
+  return 0;
 }
 
 /**
@@ -143,7 +147,6 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
         sprintf(s, "Trying to join...");
         log->LOG(&memberNode->addr, s);
 #endif
-
         // send JOINREQ message to introducer member
         emulNet->ENsend(&memberNode->addr, joinaddr, (char *)msg, msgsize);
 
@@ -216,8 +219,21 @@ void MP1Node::checkMessages() {
  */
 bool MP1Node::recvCallBack(void *env, char *data, int size ) {
 	/*
-	 * Your code goes here
+	 * Send JOINREP Message
 	 */
+  MessageHdr *recv_msg = (MessageHdr *)data;
+  Address joinaddr;
+
+  if (recv_msg->msgType == JOINREQ) {
+    memcpy(joinaddr.addr, data + sizeof(MessageHdr) ,  sizeof(memberNode->addr.addr));
+
+    printAddress(&joinaddr);
+
+}
+
+
+
+
 }
 
 /**
@@ -277,5 +293,5 @@ void MP1Node::initMemberListTable(Member *memberNode) {
 void MP1Node::printAddress(Address *addr)
 {
     printf("%d.%d.%d.%d:%d \n",  addr->addr[0],addr->addr[1],addr->addr[2],
-                                                       addr->addr[3], *(short*)&addr->addr[4]) ;    
+                                                       addr->addr[3], *(short*)&addr->addr[4]) ;
 }

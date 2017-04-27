@@ -24,15 +24,15 @@ void Params::setparams(char *config_file) {
 	fscanf(fp,"\nDROP_MSG: %d", &DROP_MSG);
 	fscanf(fp,"\nMSG_DROP_PROB: %lf", &MSG_DROP_PROB);
 
-	//printf("Parameters of the test case: %d %d %d %lf\n", MAX_NNB, SINGLE_FAILURE, DROP_MSG, MSG_DROP_PROB);
+	printf("Parameters of the test case: \nMAX_NNB:%d SINGLE_FAILURE:%d DROP_MSG:%d MSG_DROP_PROB:%lf\n", MAX_NNB, SINGLE_FAILURE, DROP_MSG, MSG_DROP_PROB);
 
-	EN_GPSZ = MAX_NNB;
+	EN_GPSZ = MAX_NNB; // actual number of peers
 	STEP_RATE=.25;
 	MAX_MSG_SIZE = 4000;
-	globaltime = 0;
+	globaltime = 0; // globaltime set from 0
 	dropmsg = 0;
 	allNodesJoined = 0;
-	for ( unsigned int i = 0; i < EN_GPSZ; i++ ) {
+	for ( int i = 0; i < EN_GPSZ; i++ ) {
 		allNodesJoined += i;
 	}
 	fclose(fp);

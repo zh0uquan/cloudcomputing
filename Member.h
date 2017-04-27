@@ -32,9 +32,9 @@ public:
 	Address() {}
 	// Copy constructor
 	Address(const Address &anotherAddress);
-	 // Overloaded = operator
-	Address& operator =(const Address &anotherAddress);
-	bool operator ==(const Address &anotherAddress);
+	// Overloaded = operator
+	Address& operator = (const Address &anotherAddress);
+	bool operator == (const Address &anotherAddress);
 	Address(string address) {
 		size_t pos = address.find(":");
 		int id = stoi(address.substr(0, pos));
