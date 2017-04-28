@@ -79,7 +79,9 @@ public:
 	void printAddress(Address *addr);
   bool recvJoinReq(MessageHdr *msg, int size);
   bool recvJoinReply(MessageHdr *msg, int size);
+  MessageHdr* createMessage(MsgTypes, Address *, vector<MemberListEntry> *);
   virtual ~MP1Node();
+
 };
 
 #endif /* _MP1NODE_H_ */

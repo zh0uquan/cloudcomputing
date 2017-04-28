@@ -245,19 +245,14 @@ bool MP1Node::recvJoinReq(MessageHdr *msg, int size) {
   log->logNodeAdd(&memberNode->addr, &msg->src);
 #endif
 
-  Address *src = &memberNode->addr;
   Address *dst = &msg->src;
 
-  size_t msgsize = sizeof(MessageHdr);
-  msg = new MessageHdr();
-  msg->msgType = JOINREP;
-  msg->src = memberNode->addr;
-  msg->memberList = memberNode->memberList;
   // send JOINREP message to the requested node
-  emulNet->ENsend(src, dst, (char *)msg, msgsize);
+  size_t msgsize = sizeof(MessageHdr);
+  msg = createMessage(JOINREP, &memberNode->addr, &memberNode->memberList);
+  emulNet->ENsend(&memberNode->addr, dst, (char *)msg, msgsize);
 
   free(msg);
-
 
   return true;
 }
@@ -275,7 +270,7 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
 #endif
 
   }
-  
+
 #ifdef DEBUGLOG
   log->logNodeAdd(&memberNode->addr, &msg->src);
 #endif
@@ -309,13 +304,11 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
       dst.addr[0] = (char) remote.id;
       dst.addr[4] = (char) remote.port;
 
-      // send JOINREP message to the remote node
+      // send JOINREQ message to the remote node
       size_t msgsize = sizeof(MessageHdr);
-      msg = new MessageHdr();
-      msg->msgType = JOINREQ;
-      msg->src = memberNode->addr;
-      msg->memberList = memberNode->memberList;
+      msg = createMessage(JOINREQ, &memberNode->addr, &memberNode->memberList);
       emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, msgsize);
+
 
       free(msg);
     }
@@ -340,6 +333,21 @@ void MP1Node::nodeLoopOps() {
 
     return;
 }
+
+/**
+ * FUNCTION NAME: createMessage
+ *
+ * DESCRIPTION: Create a MessageHdr
+ *
+ */
+MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<MemberListEntry> *lst) {
+  MessageHdr *msg = new MessageHdr();
+  msg->msgType = msgType;
+  msg->src = *src;
+  msg->memberList = *lst;
+  return msg;
+}
+
 
 /**
  * FUNCTION NAME: isNullAddress
