@@ -77,8 +77,6 @@ void MP1Node::nodeStart(char *servaddrstr, short servport) {
         exit(1);
     }
 
-      printAddress(&memberNode->addr);
-
     if( !introduceSelfToGroup(&joinaddr) ) {
         finishUpThisNode();
 #ifdef DEBUGLOG
@@ -99,8 +97,8 @@ int MP1Node::initThisNode(Address *joinaddr) {
 	/*
 	 * This function is partially implemented and may require changes
 	 */
-	int id = *(int*)(&memberNode->addr.addr);
-	int port = *(short*)(&memberNode->addr.addr[4]);
+	// int id = *(int*)(&memberNode->addr.addr);
+	// int port = *(short*)(&memberNode->addr.addr[4]);
 
 	memberNode->bFailed = false;
 	memberNode->inited = true;
@@ -135,13 +133,12 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
         memberNode->inGroup = true;
     }
     else {
-        size_t msgsize = sizeof(MessageHdr) + sizeof(joinaddr->addr) + sizeof(long) + 1;
-        msg = (MessageHdr *) malloc(msgsize * sizeof(char));
-
         // create JOINREQ message: format of data is {struct Address myaddr}
+        size_t msgsize = sizeof(MessageHdr);
+        // initialize new struct
+        msg = new MessageHdr();
         msg->msgType = JOINREQ;
-        memcpy((char *)(msg+1), &memberNode->addr.addr, sizeof(memberNode->addr.addr));
-        memcpy((char *)(msg+1) + 1 + sizeof(memberNode->addr.addr), &memberNode->heartbeat, sizeof(long));
+        msg->src = memberNode->addr;
 
 #ifdef DEBUGLOG
         sprintf(s, "Trying to join...");
@@ -166,6 +163,7 @@ int MP1Node::finishUpThisNode(){
    /*
     * Your code goes here
     */
+    return 0;
 }
 
 /**
@@ -207,7 +205,7 @@ void MP1Node::checkMessages() {
     	ptr = memberNode->mp1q.front().elt;
     	size = memberNode->mp1q.front().size;
     	memberNode->mp1q.pop();
-    	recvCallBack((void *)memberNode, (char *)ptr, size);
+    	recvCallBack((Member *)memberNode, (MessageHdr *)ptr, size);
     }
     return;
 }
@@ -217,24 +215,107 @@ void MP1Node::checkMessages() {
  *
  * DESCRIPTION: Message handler for different message types
  */
-bool MP1Node::recvCallBack(void *env, char *data, int size ) {
+bool MP1Node::recvCallBack(Member *memberNode, MessageHdr *msg, int size ) {
 	/*
-	 * Send JOINREP Message
+	 * Handle requests based on msgType
 	 */
-  MessageHdr *recv_msg = (MessageHdr *)data;
+
+  switch (msg->msgType) {
+    case JOINREQ:
+      return recvJoinReq(msg, size);
+    case JOINREP:
+      return recvJoinReply(msg, size);
+    default:
+      break;
+  }
+  return false;
+}
+
+/**
+ * FUNCTION NAME: recvJoinReq
+ *
+ * DESCRIPTION: Send a JOINREP message to the src node
+ */
+bool MP1Node::recvJoinReq(MessageHdr *msg, int size) {
+  // Add the requested node to the current node entries
+  MemberListEntry entry = MemberListEntry((int)msg->src.addr[0], (short)msg->src.addr[4]);
+  memberNode->memberList.push_back(entry);
+
+#ifdef DEBUGLOG
+  log->logNodeAdd(&memberNode->addr, &msg->src);
+#endif
+
+  Address *src = &memberNode->addr;
+  Address *dst = &msg->src;
+
+  size_t msgsize = sizeof(MessageHdr);
+  msg = new MessageHdr();
+  msg->msgType = JOINREP;
+  msg->src = memberNode->addr;
+  msg->memberList = memberNode->memberList;
+  // send JOINREP message to the requested node
+  emulNet->ENsend(src, dst, (char *)msg, msgsize);
+
+  free(msg);
+
+
+  return true;
+}
+
+bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
   Address joinaddr;
+  joinaddr = getJoinAddress();
 
-  if (recv_msg->msgType == JOINREQ) {
-    memcpy(joinaddr.addr, data + sizeof(MessageHdr) ,  sizeof(memberNode->addr.addr));
+  // Only set in Group when first time
+  if ((int) msg->src.addr[0] == (int) joinaddr.addr[0]) {
+    memberNode->inGroup = true;
 
-    printAddress(&joinaddr);
+#ifdef DEBUGLOG
+  log->LOG(&memberNode->addr, "Now in the group...");
+#endif
 
+  }
+
+  int thisId = *(int*)(&memberNode->addr.addr);
+  bool exist;
+  //Add every node in memberList
+  for (auto remote: msg->memberList) {
+    exist = false;
+    for (auto local: memberNode->memberList) {
+      if (local.id == remote.id || thisId == remote.id) {
+        exist = true;
+        break;
+      }
+    }
+
+    if (!exist) {
+      MemberListEntry entry = MemberListEntry(remote);
+      memberNode->memberList.push_back(entry);
+
+      Address dst;
+      dst.init();
+      dst.addr[0] = (char) remote.id;
+      dst.addr[4] = (char) remote.port;
+
+#ifdef DEBUGLOG
+  log->logNodeAdd(&memberNode->addr, &dst);
+#endif
+
+      size_t msgsize = sizeof(MessageHdr);
+      msg = new MessageHdr();
+      msg->msgType = JOINREQ;
+      msg->src = memberNode->addr;
+      msg->memberList = memberNode->memberList;
+      // send JOINREP message to the requested node
+      emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, msgsize);
+
+      free(msg);
+    }
+  }
+
+  return true;
 }
 
-
-
-
-}
 
 /**
  * FUNCTION NAME: nodeLoopOps

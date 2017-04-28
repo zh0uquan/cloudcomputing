@@ -41,6 +41,8 @@ enum MsgTypes{
  */
 typedef struct MessageHdr {
 	enum MsgTypes msgType;
+  Address src;
+  vector<MemberListEntry> memberList;
 }MessageHdr;
 
 /**
@@ -69,13 +71,15 @@ public:
 	int finishUpThisNode();
 	void nodeLoop();
 	void checkMessages();
-	bool recvCallBack(void *env, char *data, int size);
+	bool recvCallBack(Member *memberNode, MessageHdr *msg, int size);
 	void nodeLoopOps();
 	int isNullAddress(Address *addr);
 	Address getJoinAddress();
 	void initMemberListTable(Member *memberNode);
 	void printAddress(Address *addr);
-	virtual ~MP1Node();
+  bool recvJoinReq(MessageHdr *msg, int size);
+  bool recvJoinReply(MessageHdr *msg, int size);
+  virtual ~MP1Node();
 };
 
 #endif /* _MP1NODE_H_ */
