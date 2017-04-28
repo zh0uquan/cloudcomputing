@@ -275,19 +275,31 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
 #endif
 
   }
+  
+#ifdef DEBUGLOG
+  log->logNodeAdd(&memberNode->addr, &msg->src);
+#endif
 
   int thisId = *(int*)(&memberNode->addr.addr);
   bool exist;
   //Add every node in memberList
   for (auto remote: msg->memberList) {
     exist = false;
+
+    // ignore the remote node if it is current node
+    if (thisId == remote.id) {
+      continue;
+    }
+
+    // ignore the remote node if it is already in memberList
     for (auto local: memberNode->memberList) {
-      if (local.id == remote.id || thisId == remote.id) {
+      if (local.id == remote.id)  {
         exist = true;
         break;
       }
     }
 
+    // add the remote node to the memberList
     if (!exist) {
       MemberListEntry entry = MemberListEntry(remote);
       memberNode->memberList.push_back(entry);
@@ -297,16 +309,12 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
       dst.addr[0] = (char) remote.id;
       dst.addr[4] = (char) remote.port;
 
-#ifdef DEBUGLOG
-  log->logNodeAdd(&memberNode->addr, &dst);
-#endif
-
+      // send JOINREP message to the remote node
       size_t msgsize = sizeof(MessageHdr);
       msg = new MessageHdr();
       msg->msgType = JOINREQ;
       msg->src = memberNode->addr;
       msg->memberList = memberNode->memberList;
-      // send JOINREP message to the requested node
       emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, msgsize);
 
       free(msg);
