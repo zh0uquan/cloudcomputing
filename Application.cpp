@@ -91,10 +91,10 @@ Application::~Application() {
 int Application::run()
 {
   int i;
-  int timeWhenAllNodesHaveJoined = 0;
+  // int timeWhenAllNodesHaveJoined = 0;
   // boolean indicating if all nodes have joined
   // strange thing is that allNodesJoined is int in Params
-  bool allNodesJoined = false;
+  // bool allNodesJoined = false;
   srand(time(NULL));
 
   // As time runs per 1 time unit

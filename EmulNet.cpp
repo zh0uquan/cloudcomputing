@@ -89,7 +89,6 @@ int EmulNet::ENsend(Address *myaddr, Address *toaddr, char *data, int size) {
 	en_msg *em;
 	static char temp[2048];
 	int sendmsg = rand() % 100;
-
   // drop if either over buffer or big msg size or random msg drop prob happens
 	if( (emulnet.currbuffsize >= ENBUFFSIZE) || (size + (int)sizeof(en_msg) >= par->MAX_MSG_SIZE) || (par->dropmsg && sendmsg < (int) (par->MSG_DROP_PROB * 100)) ) {
 		return 0;
