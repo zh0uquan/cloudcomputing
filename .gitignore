@@ -2,3 +2,6 @@
 *.DS_Store
 Application
 runtest
+test.app
+*.log
+*.pdf
