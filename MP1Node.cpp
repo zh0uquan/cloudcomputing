@@ -124,7 +124,7 @@ int MP1Node::initThisNode(Address *joinaddr) {
   // node is up!
 	// memberNode->nnb = 0;
 	// memberNode->heartbeat = 0;
-	// memberNode->pingCounter = TFAIL;
+	memberNode->pingCounter = TFAIL;
 	memberNode->timeOutCounter = TPERIOD;
 
   initMemberListTable(memberNode);
@@ -347,8 +347,11 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
  *
  */
 bool MP1Node::recvPing(MessageHdr *msg, int size) {
-  msg = createMessage(ACK, &memberNode->addr, &msg->opt);
-  emulNet->ENsend(&memberNode->addr, &msg->src, (char *)msg, size);
+  Address *opt = &msg->opt;
+  Address *dst = &msg->src;
+
+  msg = createMessage(ACK, &memberNode->addr, opt);
+  emulNet->ENsend(&memberNode->addr, dst, (char *)msg, size);
 
   free(msg);
 
@@ -367,8 +370,12 @@ bool MP1Node::recvPingReq(MessageHdr *msg, int size) {
   // printAddress(&pingTarget);
   // cout << "TIME: " << par->getcurrtime()<< endl;
   // message foramt (ping, src address, dst address)
-  msg = createMessage(PING, &memberNode->addr, &msg->opt);
-  emulNet->ENsend(&memberNode->addr, &msg->src, (char *)msg, size);
+
+  Address *opt = &msg->src;
+  Address *dst = &msg->opt;
+
+  msg = createMessage(PING, &memberNode->addr, opt);
+  emulNet->ENsend(&memberNode->addr, dst, (char *)msg, size);
 
   free(msg);
 
@@ -385,10 +392,11 @@ bool MP1Node::recvPingReq(MessageHdr *msg, int size) {
  */
 bool MP1Node::recvAck(MessageHdr *msg, int size) {
   if (memberNode->addr.getAddress() == msg->opt.getAddress()) {
-    this->finished = true;
+    finished = true;
   } else {
+    Address *dst = &msg->opt;
     msg = createMessage(ACK, &memberNode->addr, &msg->opt);
-    emulNet->ENsend(&memberNode->addr, &msg->src, (char *)msg, size);
+    emulNet->ENsend(&memberNode->addr, dst, (char *)msg, size);
 
     free(msg);
   }
@@ -406,8 +414,9 @@ bool MP1Node::startCycleRun() {
   MessageHdr *msg;
   size_t msgsize = sizeof(MessageHdr);
 
-  this->pingTarget = buildAddress(memberNode->memberList[pos].getid(), memberNode->memberList[pos].getport());
-  this->finished = false;
+  memberNode->pingCounter = TFAIL;
+  pingTarget = buildAddress(memberNode->memberList[pos].getid(), memberNode->memberList[pos].getport());
+  finished = false;
 
   // memberList and dst is not needed becasuse we just wanna an ACK from the
   msg = createMessage(PING, &memberNode->addr, &pingTarget);
@@ -429,6 +438,7 @@ bool MP1Node::startHelperRun() {
   MessageHdr *msg;
   size_t msgsize = sizeof(MessageHdr);
 
+  memberNode->pingCounter = TFAIL;
   Address helper = buildAddress(memberNode->memberList[pos].getid(), memberNode->memberList[pos].getport());
   msg = createMessage(PINGREQ, &memberNode->addr, &pingTarget);
   emulNet->ENsend(&memberNode->addr, &helper, (char *)msg, msgsize);
@@ -454,9 +464,10 @@ void MP1Node::nodeLoopOps() {
     return;
   }
 
-  shuffle(memberNode->memberList);
+  // shuffle(memberNode->memberList);
 
   if (pos == memberNode->memberList.size()) {
+    shuffle(memberNode->memberList);
     pos = 0;
   }
 
@@ -467,8 +478,13 @@ void MP1Node::nodeLoopOps() {
     if (!finished) {
       //remove the pingTarget & Propagate its dead info
 
+      // for (memberNode->myPos=memberNode->memberList.begin(); memberNode->myPos != memberNode->memberList.end(); ++memberNode->myPos) {
+      //   if (memberNode->myPos->id == (int) pingTarget.addr[0] && memberNode->myPos->id == (int) pingTarget.addr[0]) {
+      //     memberNode->memberList.erase(memberNode->myPos);
+      //   }
+      // }
+      log->LOG(&pingTarget, "Node failed at %d", par->getcurrtime());
     }
-    return;
   }
 
   if (memberNode->timeOutCounter == TPERIOD) {
@@ -479,8 +495,8 @@ void MP1Node::nodeLoopOps() {
     };
   }
 
-  if ((memberNode->timeOutCounter == TPERIOD - TPERIOD / SUBGROUPNUM ) || (memberNode->timeOutCounter == TPERIOD - TPERIOD / 2 * SUBGROUPNUM)){
-    if (!finished) {
+  if (memberNode->timeOutCounter < TPERIOD){
+    if (!finished && memberNode->pingCounter == 0) {
       if (!startHelperRun()) {
         #ifdef DEBUGLOG
           log->LOG(&memberNode->addr, "startHelperRun failed! Wierd!");
@@ -489,6 +505,7 @@ void MP1Node::nodeLoopOps() {
     }
   }
 
+  memberNode->pingCounter --;
   memberNode->timeOutCounter--;
   return;
 }

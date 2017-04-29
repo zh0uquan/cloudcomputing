@@ -18,9 +18,8 @@
 /**
  * Macros
  */
-#define TPERIOD 12
-// #define TFAIL 5
-#define SUBGROUPNUM 5
+#define TPERIOD 15
+#define TFAIL 3
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
  */
