@@ -18,7 +18,7 @@
 /**
  * Macros
  */
-#define TPERIOD 15
+#define TPERIOD 20
 #define TFAIL 3
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
@@ -91,11 +91,14 @@ public:
   bool recvPing(MessageHdr *msg, int size);
   bool recvPingReq(MessageHdr *msg, int size);
   bool recvAck(MessageHdr *msg, int size);
+  bool recvRmv(MessageHdr *msg, int size);
   MessageHdr* createMessage(MsgTypes, Address *, vector<MemberListEntry> *);
   MessageHdr* createMessage(MsgTypes, Address *, Address *);
   virtual ~MP1Node();
   bool startCycleRun();
   bool startHelperRun();
+  bool sendFailedNode();
+  bool removeFailedNode(Address *);
   Address buildAddress(int id, short port);
 };
 

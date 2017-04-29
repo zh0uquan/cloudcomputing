@@ -4,15 +4,15 @@
 #*
 #* Current file: Grader.sh
 #* About this file: Grading Script.
-#* 
+#*
 #***********************
 #!/bin/sh
 
 function contains () {
   	local e
   	for e in "${@:2}"
-	do 
-		if [ "$e" == "$1" ]; then 
+	do
+		if [ "$e" == "$1" ]; then
 			echo 1
 			return 1;
 		fi

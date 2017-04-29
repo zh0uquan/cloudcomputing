@@ -138,9 +138,6 @@ int MP1Node::initThisNode(Address *joinaddr) {
  */
 int MP1Node::introduceSelfToGroup(Address *joinaddr) {
 	MessageHdr *msg;
-#ifdef DEBUGLOG
-    static char s[1024];
-#endif
 
     if ( 0 == memcmp((char *)&(memberNode->addr.addr), (char *)&(joinaddr->addr), sizeof(memberNode->addr.addr))) {
         // I am the group booter (first process to join the group). Boot up the group
@@ -158,8 +155,7 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
         msg->src = memberNode->addr;
 
 #ifdef DEBUGLOG
-        sprintf(s, "Trying to join...");
-        log->LOG(&memberNode->addr, s);
+        log->LOG(&memberNode->addr, "Trying to join...");
 #endif
         // send JOINREQ message to introducer member
         emulNet->ENsend(&memberNode->addr, joinaddr, (char *)msg, msgsize);
@@ -248,6 +244,8 @@ bool MP1Node::recvCallBack(Member *memberNode, MessageHdr *msg, int size ) {
       return recvAck(msg, size);
     case PINGREQ:
       return recvPingReq(msg, size);
+    case REMOVE:
+      return recvRmv(msg, size);
     default:
       break;
   }
@@ -277,6 +275,8 @@ bool MP1Node::recvJoinReq(MessageHdr *msg, int size) {
 
   free(msg);
 
+  srand (time(NULL));
+  random_shuffle(memberNode->memberList.begin(), memberNode->memberList.end());
   return true;
 }
 
@@ -327,6 +327,7 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
       memberNode->memberList.push_back(entry);
 
       Address dst;
+
       dst = buildAddress(remote.id, remote.port);
 
       // send JOINREQ message to the remote node
@@ -403,6 +404,15 @@ bool MP1Node::recvAck(MessageHdr *msg, int size) {
   return true;
 }
 
+
+bool MP1Node::recvRmv(MessageHdr *msg, int size) {
+  Address *dst = &msg->opt;
+  removeFailedNode(dst);
+
+  free(msg);
+  return true;
+}
+
 /**
  * FUNCTION NAME: startCycleRun
  *
@@ -450,6 +460,52 @@ bool MP1Node::startHelperRun() {
   return true;
 }
 
+/**
+ * FUNCTION NAME: sendFailedNode
+ *
+ * DESCRIPTION: send the Failed Node to every in the entry
+ *
+ */
+bool MP1Node::sendFailedNode() {
+  MessageHdr *msg;
+  size_t msgsize = sizeof(MessageHdr);
+
+  for (auto local: memberNode->memberList) {
+
+    Address dst = buildAddress(local.id, local.port);
+    msg = createMessage(REMOVE, &memberNode->addr, &pingTarget);
+    emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, msgsize);
+    free(msg);
+  }
+  return true;
+}
+
+/**
+ * FUNCTION NAME: removeFailedNode
+ *
+ * DESCRIPTION: remove the failed node and log it
+ *
+ */
+
+bool MP1Node::removeFailedNode(Address *target) {
+  vector<MemberListEntry>::iterator it = memberNode->memberList.begin();
+  // cout <<  (int) target->addr[0] << endl;
+  while (it != memberNode->memberList.end()) {
+    if (it->getid() == (int) target->addr[0]) {
+      memberNode->memberList.erase(it);
+    }
+    else {
+      ++it;
+    }
+  }
+  pos = 0;
+  log->LOG(target, "Node failed at %d", par->getcurrtime());
+  log->LOG(target, "Node removed in Node %d.0.0.0:0 memberList", memberNode->addr.addr[0]);
+
+  return true;
+}
+
+
 
 /**
  * FUNCTION NAME: nodeLoopOps
@@ -464,26 +520,30 @@ void MP1Node::nodeLoopOps() {
     return;
   }
 
-  // shuffle(memberNode->memberList);
-
   if (pos == memberNode->memberList.size()) {
-    shuffle(memberNode->memberList);
+    // random time seed to boost performance
+    srand (time(NULL));
+    random_shuffle(memberNode->memberList.begin(), memberNode->memberList.end());
     pos = 0;
   }
-
-
 
   if (memberNode->timeOutCounter == 0) {
     memberNode->timeOutCounter = TPERIOD;
     if (!finished) {
       //remove the pingTarget & Propagate its dead info
+      if (!removeFailedNode(&pingTarget)) {
+        #ifdef DEBUGLOG
+          log->LOG(&memberNode->addr, "removeFailedNode failed! Wierd!");
+        #endif
+        exit(1);
+      }
 
-      // for (memberNode->myPos=memberNode->memberList.begin(); memberNode->myPos != memberNode->memberList.end(); ++memberNode->myPos) {
-      //   if (memberNode->myPos->id == (int) pingTarget.addr[0] && memberNode->myPos->id == (int) pingTarget.addr[0]) {
-      //     memberNode->memberList.erase(memberNode->myPos);
-      //   }
-      // }
-      log->LOG(&pingTarget, "Node failed at %d", par->getcurrtime());
+      if (!sendFailedNode()) {
+        #ifdef DEBUGLOG
+          log->LOG(&memberNode->addr, "sendFailedNode failed! Wierd!");
+        #endif
+        exit(1);
+      }
     }
   }
 
@@ -492,7 +552,8 @@ void MP1Node::nodeLoopOps() {
       #ifdef DEBUGLOG
         log->LOG(&memberNode->addr, "startCycleRun failed! Wierd!");
       #endif
-    };
+      exit(1);
+    }
   }
 
   if (memberNode->timeOutCounter < TPERIOD){
@@ -501,6 +562,7 @@ void MP1Node::nodeLoopOps() {
         #ifdef DEBUGLOG
           log->LOG(&memberNode->addr, "startHelperRun failed! Wierd!");
         #endif
+        exit(1);
       }
     }
   }
@@ -513,7 +575,7 @@ void MP1Node::nodeLoopOps() {
 /**
  * FUNCTION NAME: createMessage
  *
- * DESCRIPTION: Create a MessageHdr
+ * DESCRIPTION: Create a MessageHdr in multicast pahse
  *
  */
 MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<MemberListEntry> *lst) {
@@ -526,7 +588,7 @@ MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<Member
 /**
  * FUNCTION NAME: createMessage
  *
- * DESCRIPTION: Create a MessageHdr
+ * DESCRIPTION: Create a MessageHdr in dectecting pahse
  *
  */
 MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, Address *opt) {
