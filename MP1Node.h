@@ -18,9 +18,9 @@
 /**
  * Macros
  */
-#define TPERIOD 20
-#define TFAIL 5
-#define SUBGROUPNUM 2
+#define TPERIOD 12
+// #define TFAIL 5
+#define SUBGROUPNUM 5
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
  */
@@ -65,7 +65,8 @@ private:
 	char NULLADDR[6];
   //added values
   size_t pos;
-  // Address pingTarget;
+  bool finished;
+  Address pingTarget;
 
 public:
 	MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
@@ -88,8 +89,14 @@ public:
 	void printAddress(Address *addr);
   bool recvJoinReq(MessageHdr *msg, int size);
   bool recvJoinReply(MessageHdr *msg, int size);
-  MessageHdr* createMessage(MsgTypes, Address *, vector<MemberListEntry> *, Address *opt=NULL);
+  bool recvPing(MessageHdr *msg, int size);
+  bool recvPingReq(MessageHdr *msg, int size);
+  bool recvAck(MessageHdr *msg, int size);
+  MessageHdr* createMessage(MsgTypes, Address *, vector<MemberListEntry> *);
+  MessageHdr* createMessage(MsgTypes, Address *, Address *);
   virtual ~MP1Node();
+  bool startCycleRun();
+  bool startHelperRun();
   Address buildAddress(int id, short port);
 };
 

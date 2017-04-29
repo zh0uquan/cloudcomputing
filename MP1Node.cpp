@@ -122,9 +122,9 @@ int MP1Node::initThisNode(Address *joinaddr) {
 	memberNode->inited = true;
 	memberNode->inGroup = false;
   // node is up!
-	memberNode->nnb = 0;
-	memberNode->heartbeat = 0;
-	memberNode->pingCounter = TFAIL;
+	// memberNode->nnb = 0;
+	// memberNode->heartbeat = 0;
+	// memberNode->pingCounter = TFAIL;
 	memberNode->timeOutCounter = TPERIOD;
 
   initMemberListTable(memberNode);
@@ -242,6 +242,12 @@ bool MP1Node::recvCallBack(Member *memberNode, MessageHdr *msg, int size ) {
       return recvJoinReq(msg, size);
     case JOINREP:
       return recvJoinReply(msg, size);
+    case PING:
+      return recvPing(msg, size);
+    case ACK:
+      return recvAck(msg, size);
+    case PINGREQ:
+      return recvPingReq(msg, size);
     default:
       break;
   }
@@ -264,7 +270,6 @@ bool MP1Node::recvJoinReq(MessageHdr *msg, int size) {
 #endif
 
   Address *dst = &msg->src;
-
   // send JOINREP message to the requested node
   size_t msgsize = sizeof(MessageHdr);
   msg = createMessage(JOINREP, &memberNode->addr, &memberNode->memberList);
@@ -324,15 +329,105 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
       Address dst;
       dst = buildAddress(remote.id, remote.port);
 
-
       // send JOINREQ message to the remote node
-      size_t msgsize = sizeof(MessageHdr);
       msg = createMessage(JOINREQ, &memberNode->addr, &memberNode->memberList);
-      emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, msgsize);
+      emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, size);
 
       free(msg);
     }
   }
+
+  return true;
+}
+
+/**
+ * FUNCTION NAME: recvPing
+ *
+ * DESCRIPTION: Received an ping and should send an ACK to msg source
+ *
+ */
+bool MP1Node::recvPing(MessageHdr *msg, int size) {
+  msg = createMessage(ACK, &memberNode->addr, &msg->opt);
+  emulNet->ENsend(&memberNode->addr, &msg->src, (char *)msg, size);
+
+  free(msg);
+
+  return true;
+}
+
+
+/**
+ * FUNCTION NAME: recvAck
+ *
+ * DESCRIPTION: Received an ping and should send an ACK to msg source
+ *
+ */
+bool MP1Node::recvPingReq(MessageHdr *msg, int size) {
+  // cout << "current node: " << (int) memberNode->addr.addr[0]<<endl;
+  // printAddress(&pingTarget);
+  // cout << "TIME: " << par->getcurrtime()<< endl;
+
+  return true;
+}
+
+
+/**
+ * FUNCTION NAME: recvAck
+ *
+ * DESCRIPTION: Received an ACK and check its destantion is the current node
+ *     if not, then send an ACK to the requested node
+ *
+ */
+bool MP1Node::recvAck(MessageHdr *msg, int size) {
+  if (memberNode->addr.getAddress() == msg->opt.getAddress()) {
+    this->finished = true;
+  } else {
+
+  }
+  return true;
+}
+
+/**
+ * FUNCTION NAME: startCycleRun
+ *
+ * DESCRIPTION: Start one cycle run during time period
+ *     if not, then send an ACK to the requested node
+ *
+ */
+bool MP1Node::startCycleRun() {
+  MessageHdr *msg;
+  size_t msgsize = sizeof(MessageHdr);
+
+  this->pingTarget = buildAddress(memberNode->memberList[pos].getid(), memberNode->memberList[pos].getport());
+  this->finished = false;
+
+  // memberList and dst is not needed becasuse we just wanna an ACK from the
+  msg = createMessage(PING, &memberNode->addr, &pingTarget);
+  emulNet->ENsend(&memberNode->addr, &pingTarget, (char *)msg, msgsize);
+  free(msg);
+
+  pos++;
+
+  return true;
+}
+
+/**
+ * FUNCTION NAME: startCycleRun
+ *
+ * DESCRIPTION: Ask the helper to handle the communication when pingTarget is not responding
+ *
+ */
+bool MP1Node::startHelperRun() {
+  MessageHdr *msg;
+  size_t msgsize = sizeof(MessageHdr);
+
+  Address helper = buildAddress(memberNode->memberList[pos].getid(), memberNode->memberList[pos].getport());
+  msg = createMessage(PINGREQ, &memberNode->addr, &pingTarget);
+  emulNet->ENsend(&memberNode->addr, &helper, (char *)msg, msgsize);
+
+  free(msg);
+
+  pos++;
 
   return true;
 }
@@ -347,17 +442,47 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
  */
 void MP1Node::nodeLoopOps() {
   // we skip nodes those who have no neighours to chose to dectect failures
-  if (!memberNode->memberList.empty()){
-    if (pos != memberNode->memberList.size()) {
+  if (memberNode->memberList.empty()){
+    return;
+  }
 
-      pos++;
-    } else {
+  shuffle(memberNode->memberList);
 
-      shuffle(memberNode->memberList);
-      pos = 0;
+  if (pos == memberNode->memberList.size()) {
+    pos = 0;
+  }
+
+
+
+  if (memberNode->timeOutCounter == 0) {
+    memberNode->timeOutCounter = TPERIOD;
+    if (!finished) {
+      //remove the pingTarget & Propagate its dead info
+
+    }
+    return;
+  }
+
+  if (memberNode->timeOutCounter == TPERIOD) {
+    if (!startCycleRun()) {
+      #ifdef DEBUGLOG
+        log->LOG(&memberNode->addr, "startCycleRun failed! Wierd!");
+      #endif
+    };
+  }
+
+  if ((memberNode->timeOutCounter == TPERIOD - TPERIOD / SUBGROUPNUM ) || (memberNode->timeOutCounter == TPERIOD - TPERIOD / 2 * SUBGROUPNUM)){
+    if (!finished) {
+      if (!startHelperRun()) {
+        #ifdef DEBUGLOG
+          log->LOG(&memberNode->addr, "startHelperRun failed! Wierd!");
+        #endif
+      }
     }
   }
 
+  memberNode->timeOutCounter--;
+  return;
 }
 
 /**
@@ -366,12 +491,24 @@ void MP1Node::nodeLoopOps() {
  * DESCRIPTION: Create a MessageHdr
  *
  */
-MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<MemberListEntry> *lst, Address *opt) {
+MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<MemberListEntry> *lst) {
   MessageHdr *msg = new MessageHdr();
   msg->msgType = msgType;
   msg->src = *src;
   msg->memberList = *lst;
-  if (opt != NULL) msg->opt = *opt;
+  return msg;
+}
+/**
+ * FUNCTION NAME: createMessage
+ *
+ * DESCRIPTION: Create a MessageHdr
+ *
+ */
+MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, Address *opt) {
+  MessageHdr *msg = new MessageHdr();
+  msg->msgType = msgType;
+  msg->src = *src;
+  msg->opt = *opt;
   return msg;
 }
 
