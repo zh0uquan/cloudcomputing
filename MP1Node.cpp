@@ -8,6 +8,23 @@
 #include <typeinfo>
 #include "MP1Node.h"
 
+
+/**
+ * Fisher–Yates shuffle Algorithm, random shuffle taken from github
+ * It is used to shuffle the vector in order to use round-robin ring
+ * https://gist.github.com/sundeepblue/10501662
+ */
+
+void shuffle(vector<MemberListEntry> &a) {
+    int N = a.size();
+    for(int i=N-1; i>0; --i) {  // gist, note, i>0 not i>=0
+        int r = rand() % (i+1); // gist, note, i+1 not i. "rand() % (i+1)" means
+                                // generate rand numbers from 0 to i
+        swap(a[i], a[r]);
+    }
+}
+
+
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
  */
@@ -26,6 +43,7 @@ MP1Node::MP1Node(Member *member, Params *params, EmulNet *emul, Log *log, Addres
 	this->log = log;
 	this->par = params;
 	this->memberNode->addr = *address;
+  this->pos = 0;
 }
 
 /**
@@ -107,10 +125,9 @@ int MP1Node::initThisNode(Address *joinaddr) {
 	memberNode->nnb = 0;
 	memberNode->heartbeat = 0;
 	memberNode->pingCounter = TFAIL;
-	memberNode->timeOutCounter = -1;
+	memberNode->timeOutCounter = TPERIOD;
 
   initMemberListTable(memberNode);
-
   return 0;
 }
 
@@ -235,6 +252,7 @@ bool MP1Node::recvCallBack(Member *memberNode, MessageHdr *msg, int size ) {
  * FUNCTION NAME: recvJoinReq
  *
  * DESCRIPTION: Send a JOINREP message to the src node
+ *              Propagate the membership list
  */
 bool MP1Node::recvJoinReq(MessageHdr *msg, int size) {
   // Add the requested node to the current node entries
@@ -300,15 +318,13 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
       memberNode->memberList.push_back(entry);
 
       Address dst;
-      dst.init();
-      dst.addr[0] = (char) remote.id;
-      dst.addr[4] = (char) remote.port;
+      dst = buildAddress(remote.id, remote.port);
+
 
       // send JOINREQ message to the remote node
       size_t msgsize = sizeof(MessageHdr);
       msg = createMessage(JOINREQ, &memberNode->addr, &memberNode->memberList);
       emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, msgsize);
-
 
       free(msg);
     }
@@ -323,15 +339,48 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
  *
  * DESCRIPTION: Check if any node hasn't responded within a timeout period and then delete
  * 				the nodes
- * 				Propagate your membership list
+ *        SWIM protocol is used here and robin cycle is used as protocol improvement
  */
 void MP1Node::nodeLoopOps() {
+  // check if the iterator pointer reaches the end
+  if (pos == (int) memberNode->memberList.size()) {
+    // cout << "we can still iterate on this" << endl;
+    // randomize the memberList and set the myPos to the begin
+    shuffle(memberNode->memberList);
+  }
 
-	/*
-	 * Your code goes here
-	 */
+  if (!memberNode->memberList.empty()){
 
+    cout << "current node: " << (int) memberNode->addr.addr[0];
+    cout << " loop over node " << memberNode->memberList[pos].getid() << endl;
+    pos++;
     return;
+
+
+
+
+  }
+
+
+  // for (memberNode->myPos=memberNode->memberList.begin(); memberNode->myPos != memberNode->memberList.end(); ++memberNode->myPos) {
+  //   cout << "current node: " << (int) memberNode->addr.addr[0];
+  //   cout << " loop over node "<< memberNode->myPos->id << endl;
+  //
+  // }
+  // if (memberNode->timeOutCounter == TPERIOD) {
+  //
+  // }
+
+  //
+  // cout << " after shuffle "<< endl;
+  //
+  // for (memberNode->myPos=memberNode->memberList.begin(); memberNode->myPos != memberNode->memberList.end(); ++memberNode->myPos) {
+  //   cout << "current node: " << (int) memberNode->addr.addr[0];
+  //   cout << " loop over node "<< memberNode->myPos->id << endl;
+  //
+  // }
+  //
+
 }
 
 /**
@@ -348,6 +397,20 @@ MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<Member
   return msg;
 }
 
+/**
+ * FUNCTION NAME: buildAddress
+ *
+ * DESCRIPTION: Build an Address using id and port
+ *
+ */
+
+Address MP1Node::buildAddress(int id, short port) {
+  Address addr;
+  addr.init();
+  addr.addr[0] = (char) id;
+  addr.addr[4] = (char) port;
+  return addr;
+}
 
 /**
  * FUNCTION NAME: isNullAddress
