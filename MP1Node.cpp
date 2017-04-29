@@ -357,15 +357,20 @@ bool MP1Node::recvPing(MessageHdr *msg, int size) {
 
 
 /**
- * FUNCTION NAME: recvAck
+ * FUNCTION NAME: recvPingReq
  *
- * DESCRIPTION: Received an ping and should send an ACK to msg source
- *
+ * DESCRIPTION: This is func only triggered when those helper Received PINGREQ
+ *              Received an recvPingReq and should send an ping to dst in order to get an ACK
  */
 bool MP1Node::recvPingReq(MessageHdr *msg, int size) {
   // cout << "current node: " << (int) memberNode->addr.addr[0]<<endl;
   // printAddress(&pingTarget);
   // cout << "TIME: " << par->getcurrtime()<< endl;
+  // message foramt (ping, src address, dst address)
+  msg = createMessage(PING, &memberNode->addr, &msg->opt);
+  emulNet->ENsend(&memberNode->addr, &msg->src, (char *)msg, size);
+
+  free(msg);
 
   return true;
 }
@@ -382,7 +387,10 @@ bool MP1Node::recvAck(MessageHdr *msg, int size) {
   if (memberNode->addr.getAddress() == msg->opt.getAddress()) {
     this->finished = true;
   } else {
+    msg = createMessage(ACK, &memberNode->addr, &msg->opt);
+    emulNet->ENsend(&memberNode->addr, &msg->src, (char *)msg, size);
 
+    free(msg);
   }
   return true;
 }
