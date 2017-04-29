@@ -342,44 +342,14 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
  *        SWIM protocol is used here and robin cycle is used as protocol improvement
  */
 void MP1Node::nodeLoopOps() {
-  // check if the iterator pointer reaches the end
-  if (pos == (int) memberNode->memberList.size()) {
-    // cout << "we can still iterate on this" << endl;
-    // randomize the memberList and set the myPos to the begin
-    shuffle(memberNode->memberList);
-  }
-
+  // we skip nodes those who have no neighours to chose to dectect failures
   if (!memberNode->memberList.empty()){
-
-    cout << "current node: " << (int) memberNode->addr.addr[0];
-    cout << " loop over node " << memberNode->memberList[pos].getid() << endl;
-    pos++;
-    return;
-
-
-
-
+    if (pos != memberNode->memberList.size()) {
+      cout << "current node: " << (int) memberNode->addr.addr[0];
+      cout << " loop over node "<< memberNode->memberList[pos].id << endl;
+      pos++;
+    }
   }
-
-
-  // for (memberNode->myPos=memberNode->memberList.begin(); memberNode->myPos != memberNode->memberList.end(); ++memberNode->myPos) {
-  //   cout << "current node: " << (int) memberNode->addr.addr[0];
-  //   cout << " loop over node "<< memberNode->myPos->id << endl;
-  //
-  // }
-  // if (memberNode->timeOutCounter == TPERIOD) {
-  //
-  // }
-
-  //
-  // cout << " after shuffle "<< endl;
-  //
-  // for (memberNode->myPos=memberNode->memberList.begin(); memberNode->myPos != memberNode->memberList.end(); ++memberNode->myPos) {
-  //   cout << "current node: " << (int) memberNode->addr.addr[0];
-  //   cout << " loop over node "<< memberNode->myPos->id << endl;
-  //
-  // }
-  //
 
 }
 

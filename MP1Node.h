@@ -34,12 +34,15 @@ enum MsgTypes{
     PING,
     PINGREQ,
     ACK,
+    REMOVE
 };
 
 /**
  * STRUCT NAME: MessageHdr
  *
  * DESCRIPTION: Header and content of a message
+ *   Address optional is used as destantion if MsgTypes is PINGREQ or ACK
+ *   And it is used as remove target if MsgTypes is REMOVE
  */
 typedef struct MessageHdr {
 	enum MsgTypes msgType;
@@ -60,7 +63,7 @@ private:
 	Member *memberNode;
 	char NULLADDR[6];
   //added values
-  int pos;
+  size_t pos;
   // Address pingTarget;
 
 public:
