@@ -279,6 +279,10 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
   Address joinaddr;
   joinaddr = getJoinAddress();
 
+  // Add the joined node to the current node entries
+  MemberListEntry entry = MemberListEntry((int)msg->src.addr[0], (short)msg->src.addr[4]);
+  memberNode->memberList.push_back(entry);
+
   // Only set in Group when first time
   if ((int) msg->src.addr[0] == (int) joinaddr.addr[0]) {
     memberNode->inGroup = true;
@@ -345,9 +349,12 @@ void MP1Node::nodeLoopOps() {
   // we skip nodes those who have no neighours to chose to dectect failures
   if (!memberNode->memberList.empty()){
     if (pos != memberNode->memberList.size()) {
-      cout << "current node: " << (int) memberNode->addr.addr[0];
-      cout << " loop over node "<< memberNode->memberList[pos].id << endl;
+
       pos++;
+    } else {
+
+      shuffle(memberNode->memberList);
+      pos = 0;
     }
   }
 
@@ -359,11 +366,12 @@ void MP1Node::nodeLoopOps() {
  * DESCRIPTION: Create a MessageHdr
  *
  */
-MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<MemberListEntry> *lst) {
+MessageHdr* MP1Node::createMessage(MsgTypes msgType, Address *src, vector<MemberListEntry> *lst, Address *opt) {
   MessageHdr *msg = new MessageHdr();
   msg->msgType = msgType;
   msg->src = *src;
   msg->memberList = *lst;
+  if (opt != NULL) msg->opt = *opt;
   return msg;
 }
 

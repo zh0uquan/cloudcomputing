@@ -47,6 +47,7 @@ enum MsgTypes{
 typedef struct MessageHdr {
 	enum MsgTypes msgType;
   Address src;
+  Address opt;
   vector<MemberListEntry> memberList;
 }MessageHdr;
 
@@ -87,7 +88,7 @@ public:
 	void printAddress(Address *addr);
   bool recvJoinReq(MessageHdr *msg, int size);
   bool recvJoinReply(MessageHdr *msg, int size);
-  MessageHdr* createMessage(MsgTypes, Address *, vector<MemberListEntry> *);
+  MessageHdr* createMessage(MsgTypes, Address *, vector<MemberListEntry> *, Address *opt=NULL);
   virtual ~MP1Node();
   Address buildAddress(int id, short port);
 };
