@@ -260,8 +260,20 @@ bool MP1Node::recvCallBack(Member *memberNode, MessageHdr *msg, int size ) {
  */
 bool MP1Node::recvJoinReq(MessageHdr *msg, int size) {
   // Add the requested node to the current node entries
-  MemberListEntry entry = MemberListEntry((int)msg->src.addr[0], (short)msg->src.addr[4]);
-  memberNode->memberList.push_back(entry);
+  bool exist = false;
+  for (auto local: memberNode->memberList) {
+    if (local.id == msg->src.addr[0])  {
+      exist = true;
+      break;
+    }
+  }
+
+  // add the remote node to the memberList
+  if (!exist) {
+    // Add the joined node to the current node entries
+    MemberListEntry entry = MemberListEntry((int)msg->src.addr[0], (short)msg->src.addr[4]);
+    memberNode->memberList.push_back(entry);
+  }
 
 #ifdef DEBUGLOG
   log->logNodeAdd(&memberNode->addr, &msg->src);
@@ -275,8 +287,6 @@ bool MP1Node::recvJoinReq(MessageHdr *msg, int size) {
 
   free(msg);
 
-  srand (time(NULL));
-  random_shuffle(memberNode->memberList.begin(), memberNode->memberList.end());
   return true;
 }
 
@@ -284,9 +294,21 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
   Address joinaddr;
   joinaddr = getJoinAddress();
 
-  // Add the joined node to the current node entries
-  MemberListEntry entry = MemberListEntry((int)msg->src.addr[0], (short)msg->src.addr[4]);
-  memberNode->memberList.push_back(entry);
+
+  bool exist = false;
+  for (auto local: memberNode->memberList) {
+    if (local.id == msg->src.addr[0])  {
+      exist = true;
+      break;
+    }
+  }
+
+  // add the remote node to the memberList
+  if (!exist) {
+    // Add the joined node to the current node entries
+    MemberListEntry entry = MemberListEntry((int)msg->src.addr[0], (short)msg->src.addr[4]);
+    memberNode->memberList.push_back(entry);
+  }
 
   // Only set in Group when first time
   if ((int) msg->src.addr[0] == (int) joinaddr.addr[0]) {
@@ -303,7 +325,8 @@ bool MP1Node::recvJoinReply(MessageHdr *msg, int size) {
 #endif
 
   int thisId = *(int*)(&memberNode->addr.addr);
-  bool exist;
+
+
   //Add every node in memberList
   for (auto remote: msg->memberList) {
     exist = false;
@@ -406,8 +429,9 @@ bool MP1Node::recvAck(MessageHdr *msg, int size) {
 
 
 bool MP1Node::recvRmv(MessageHdr *msg, int size) {
-  Address *dst = &msg->opt;
-  removeFailedNode(dst);
+  Address *rmv = &msg->opt;
+
+  removeFailedNode(rmv);
 
   free(msg);
   return true;
@@ -454,9 +478,7 @@ bool MP1Node::startHelperRun() {
   emulNet->ENsend(&memberNode->addr, &helper, (char *)msg, msgsize);
 
   free(msg);
-
   pos++;
-
   return true;
 }
 
@@ -471,7 +493,6 @@ bool MP1Node::sendFailedNode() {
   size_t msgsize = sizeof(MessageHdr);
 
   for (auto local: memberNode->memberList) {
-
     Address dst = buildAddress(local.id, local.port);
     msg = createMessage(REMOVE, &memberNode->addr, &pingTarget);
     emulNet->ENsend(&memberNode->addr, &dst, (char *)msg, msgsize);
@@ -488,24 +509,15 @@ bool MP1Node::sendFailedNode() {
  */
 
 bool MP1Node::removeFailedNode(Address *target) {
-  vector<MemberListEntry>::iterator it = memberNode->memberList.begin();
-  // cout <<  (int) target->addr[0] << endl;
-  while (it != memberNode->memberList.end()) {
-    if (it->getid() == (int) target->addr[0]) {
-      memberNode->memberList.erase(it);
-    }
-    else {
-      ++it;
+  for (size_t it = 0; it < memberNode->memberList.size(); it++) {
+    if (memberNode->memberList[it].getid() == (int) target->addr[0]) {
+      memberNode->memberList.erase(memberNode->memberList.begin() + it);
+      log->LOG(target, "Recv Node failed");
+      log->logNodeRemove(&memberNode->addr, target);
     }
   }
-  pos = 0;
-  log->LOG(target, "Node failed at %d", par->getcurrtime());
-  log->LOG(target, "Node removed in Node %d.0.0.0:0 memberList", memberNode->addr.addr[0]);
-
   return true;
 }
-
-
 
 /**
  * FUNCTION NAME: nodeLoopOps
@@ -520,16 +532,18 @@ void MP1Node::nodeLoopOps() {
     return;
   }
 
-  if (pos == memberNode->memberList.size()) {
-    // random time seed to boost performance
-    srand (time(NULL));
-    random_shuffle(memberNode->memberList.begin(), memberNode->memberList.end());
-    pos = 0;
-  }
 
   if (memberNode->timeOutCounter == 0) {
     memberNode->timeOutCounter = TPERIOD;
+    // if ((int) memberNode->addr.addr[0] == 10) {
+    //   for (size_t it = 0; it < memberNode->memberList.size(); it++ ) {
+    //     cout << " " << memberNode->memberList[it].getid() << " ";
+    //   }
+    // }
+    // cout << endl;
+
     if (!finished) {
+
       //remove the pingTarget & Propagate its dead info
       if (!removeFailedNode(&pingTarget)) {
         #ifdef DEBUGLOG
@@ -545,6 +559,13 @@ void MP1Node::nodeLoopOps() {
         exit(1);
       }
     }
+  }
+
+  if (pos == memberNode->memberList.size()) {
+    // random time seed to boost performance
+    srand (time(NULL));
+    random_shuffle(memberNode->memberList.begin(), memberNode->memberList.end());
+    pos = 0;
   }
 
   if (memberNode->timeOutCounter == TPERIOD) {

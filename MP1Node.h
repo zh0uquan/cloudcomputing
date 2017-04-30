@@ -18,8 +18,8 @@
 /**
  * Macros
  */
-#define TPERIOD 20
-#define TFAIL 3
+#define TPERIOD 24
+#define TFAIL 2
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
  */
