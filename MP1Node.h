@@ -2,7 +2,7 @@
  * FILE NAME: MP1Node.cpp
  *
  * DESCRIPTION: Membership protocol run by this Node.
- * 				Header file of MP1Node class.
+ *         Header file of MP1Node class.
  **********************************/
 
 #ifndef _MP1NODE_H_
@@ -44,7 +44,7 @@ enum MsgTypes{
  *   And it is used as remove target if MsgTypes is REMOVE
  */
 typedef struct MessageHdr {
-	enum MsgTypes msgType;
+  enum MsgTypes msgType;
   Address src;
   Address opt;
   vector<MemberListEntry> memberList;
@@ -57,35 +57,35 @@ typedef struct MessageHdr {
  */
 class MP1Node {
 private:
-	EmulNet *emulNet;
-	Log *log;
-	Params *par;
-	Member *memberNode;
-	char NULLADDR[6];
+  EmulNet *emulNet;
+  Log *log;
+  Params *par;
+  Member *memberNode;
+  char NULLADDR[6];
   //added values
   size_t pos;
   bool finished;
   Address pingTarget;
 
 public:
-	MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
-	Member * getMemberNode() {
-		return memberNode;
-	}
-	int recvLoop();
-	static int enqueueWrapper(void *env, char *buff, int size);
-	void nodeStart(char *servaddrstr, short serverport);
-	int initThisNode(Address *joinaddr);
-	int introduceSelfToGroup(Address *joinAddress);
-	int finishUpThisNode();
-	void nodeLoop();
-	void checkMessages();
-	bool recvCallBack(Member *memberNode, MessageHdr *msg, int size);
-	void nodeLoopOps();
-	int isNullAddress(Address *addr);
-	Address getJoinAddress();
-	void initMemberListTable(Member *memberNode);
-	void printAddress(Address *addr);
+  MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
+  Member * getMemberNode() {
+    return memberNode;
+  }
+  int recvLoop();
+  static int enqueueWrapper(void *env, char *buff, int size);
+  void nodeStart(char *servaddrstr, short serverport);
+  int initThisNode(Address *joinaddr);
+  int introduceSelfToGroup(Address *joinAddress);
+  int finishUpThisNode();
+  void nodeLoop();
+  void checkMessages();
+  bool recvCallBack(Member *memberNode, MessageHdr *msg, int size);
+  void nodeLoopOps();
+  int isNullAddress(Address *addr);
+  Address getJoinAddress();
+  void initMemberListTable(Member *memberNode);
+  void printAddress(Address *addr);
   bool recvJoinReq(MessageHdr *msg, int size);
   bool recvJoinReply(MessageHdr *msg, int size);
   bool recvPing(MessageHdr *msg, int size);

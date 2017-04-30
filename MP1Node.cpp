@@ -2,28 +2,11 @@
  * FILE NAME: MP1Node.cpp
  *
  * DESCRIPTION: Membership protocol run by this Node.
- * 				Definition of MP1Node class functions.
+ *         Definition of MP1Node class functions.
  **********************************/
 
 #include <typeinfo>
 #include "MP1Node.h"
-
-
-/**
- * Fisher–Yates shuffle Algorithm, random shuffle taken from github
- * It is used to shuffle the vector in order to use round-robin ring
- * https://gist.github.com/sundeepblue/10501662
- */
-
-void shuffle(vector<MemberListEntry> &a) {
-    int N = a.size();
-    for(int i=N-1; i>0; --i) {  // gist, note, i>0 not i>=0
-        int r = rand() % (i+1); // gist, note, i+1 not i. "rand() % (i+1)" means
-                                // generate rand numbers from 0 to i
-        swap(a[i], a[r]);
-    }
-}
-
 
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
@@ -35,14 +18,14 @@ void shuffle(vector<MemberListEntry> &a) {
  * is necessary for your logic to work
  */
 MP1Node::MP1Node(Member *member, Params *params, EmulNet *emul, Log *log, Address *address) {
-	for( int i = 0; i < 6; i++ ) {
-		NULLADDR[i] = 0;
-	}
-	this->memberNode = member;
-	this->emulNet = emul;
-	this->log = log;
-	this->par = params;
-	this->memberNode->addr = *address;
+  for( int i = 0; i < 6; i++ ) {
+    NULLADDR[i] = 0;
+  }
+  this->memberNode = member;
+  this->emulNet = emul;
+  this->log = log;
+  this->par = params;
+  this->memberNode->addr = *address;
   this->pos = 0;
 }
 
@@ -55,15 +38,15 @@ MP1Node::~MP1Node() {}
  * FUNCTION NAME: recvLoop
  *
  * DESCRIPTION: This function receives message from the network and pushes into the queue
- * 				This function is called by a node to receive messages currently waiting for it
+ *         This function is called by a node to receive messages currently waiting for it
  */
 int MP1Node::recvLoop() {
-    if ( memberNode->bFailed ) {
-    	return false;
-    }
-    else {
-      return emulNet->ENrecv(&(memberNode->addr), enqueueWrapper, NULL, 1, &(memberNode->mp1q));
-    }
+  if ( memberNode->bFailed ) {
+    return false;
+  }
+  else {
+    return emulNet->ENrecv(&(memberNode->addr), enqueueWrapper, NULL, 1, &(memberNode->mp1q));
+  }
 }
 
 /**
@@ -72,38 +55,38 @@ int MP1Node::recvLoop() {
  * DESCRIPTION: Enqueue the message from Emulnet into the queue
  */
 int MP1Node::enqueueWrapper(void *env, char *buff, int size) {
-	Queue q;
-	return q.enqueue((queue<q_elt> *)env, (void *)buff, size);
+  Queue q;
+  return q.enqueue((queue<q_elt> *)env, (void *)buff, size);
 }
 
 /**
  * FUNCTION NAME: nodeStart
  *
  * DESCRIPTION: This function bootstraps the node
- * 				All initializations routines for a member.
- * 				Called by the application layer.
+ *         All initializations routines for a member.
+ *         Called by the application layer.
  */
 void MP1Node::nodeStart(char *servaddrstr, short servport) {
-    Address joinaddr;
-    joinaddr = getJoinAddress();
+  Address joinaddr;
+  joinaddr = getJoinAddress();
 
-    // Self booting routines
-    if( initThisNode(&joinaddr) == -1 ) {
+  // Self booting routines
+  if( initThisNode(&joinaddr) == -1 ) {
 #ifdef DEBUGLOG
-        log->LOG(&memberNode->addr, "init_thisnode failed. Exit.");
+      log->LOG(&memberNode->addr, "init_thisnode failed. Exit.");
 #endif
-        exit(1);
-    }
+      exit(1);
+  }
 
-    if( !introduceSelfToGroup(&joinaddr) ) {
-        finishUpThisNode();
+  if( !introduceSelfToGroup(&joinaddr) ) {
+      finishUpThisNode();
 #ifdef DEBUGLOG
-        log->LOG(&memberNode->addr, "Unable to join self to group. Exiting.");
+      log->LOG(&memberNode->addr, "Unable to join self to group. Exiting.");
 #endif
-        exit(1);
-    }
+      exit(1);
+  }
 
-    return;
+  return;
 }
 
 /**
@@ -112,20 +95,20 @@ void MP1Node::nodeStart(char *servaddrstr, short servport) {
  * DESCRIPTION: Find out who I am and start up
  */
 int MP1Node::initThisNode(Address *joinaddr) {
-	/*
-	 * This function is partially implemented and may require changes
-	 */
-	// int id = *(int*)(&memberNode->addr.addr);
-	// int port = *(short*)(&memberNode->addr.addr[4]);
+  /*
+   * This function is partially implemented and may require changes
+   */
+  // int id = *(int*)(&memberNode->addr.addr);
+  // int port = *(short*)(&memberNode->addr.addr[4]);
 
-	memberNode->bFailed = false;
-	memberNode->inited = true;
-	memberNode->inGroup = false;
+  memberNode->bFailed = false;
+  memberNode->inited = true;
+  memberNode->inGroup = false;
   // node is up!
-	// memberNode->nnb = 0;
-	// memberNode->heartbeat = 0;
-	memberNode->pingCounter = TFAIL;
-	memberNode->timeOutCounter = TPERIOD;
+  // memberNode->nnb = 0;
+  // memberNode->heartbeat = 0;
+  memberNode->pingCounter = TFAIL;
+  memberNode->timeOutCounter = TPERIOD;
 
   initMemberListTable(memberNode);
   return 0;
@@ -137,9 +120,9 @@ int MP1Node::initThisNode(Address *joinaddr) {
  * DESCRIPTION: Join the distributed system
  */
 int MP1Node::introduceSelfToGroup(Address *joinaddr) {
-	MessageHdr *msg;
+  MessageHdr *msg;
 
-    if ( 0 == memcmp((char *)&(memberNode->addr.addr), (char *)&(joinaddr->addr), sizeof(memberNode->addr.addr))) {
+    if (memberNode->addr[0] == joinaddr->addr[0]) {
         // I am the group booter (first process to join the group). Boot up the group
 #ifdef DEBUGLOG
         log->LOG(&memberNode->addr, "Starting up group...");
@@ -183,11 +166,11 @@ int MP1Node::finishUpThisNode(){
  * FUNCTION NAME: nodeLoop
  *
  * DESCRIPTION: Executed periodically at each member
- * 				Check your messages in queue and perform membership protocol duties
+ *         Check your messages in queue and perform membership protocol duties
  */
 void MP1Node::nodeLoop() {
     if (memberNode->bFailed) {
-    	return;
+      return;
     }
 
     // Check my messages
@@ -195,7 +178,7 @@ void MP1Node::nodeLoop() {
 
     // Wait until you're in the group...
     if( !memberNode->inGroup ) {
-    	return;
+      return;
     }
 
     // ...then jump in and share your responsibilites!
@@ -215,10 +198,10 @@ void MP1Node::checkMessages() {
 
     // Pop waiting messages from memberNode's mp1q
     while ( !memberNode->mp1q.empty() ) {
-    	ptr = memberNode->mp1q.front().elt;
-    	size = memberNode->mp1q.front().size;
-    	memberNode->mp1q.pop();
-    	recvCallBack((Member *)memberNode, (MessageHdr *)ptr, size);
+      ptr = memberNode->mp1q.front().elt;
+      size = memberNode->mp1q.front().size;
+      memberNode->mp1q.pop();
+      recvCallBack((Member *)memberNode, (MessageHdr *)ptr, size);
     }
     return;
 }
@@ -229,9 +212,9 @@ void MP1Node::checkMessages() {
  * DESCRIPTION: Message handler for different message types
  */
 bool MP1Node::recvCallBack(Member *memberNode, MessageHdr *msg, int size ) {
-	/*
-	 * Handle requests based on msgType
-	 */
+  /*
+   * Handle requests based on msgType
+   */
 
   switch (msg->msgType) {
     case JOINREQ:
@@ -523,7 +506,7 @@ bool MP1Node::removeFailedNode(Address *target) {
  * FUNCTION NAME: nodeLoopOps
  *
  * DESCRIPTION: Check if any node hasn't responded within a timeout period and then delete
- * 				the nodes
+ *         the nodes
  *        SWIM protocol is used here and robin cycle is used as protocol improvement
  */
 void MP1Node::nodeLoopOps() {
@@ -641,7 +624,7 @@ Address MP1Node::buildAddress(int id, short port) {
  * DESCRIPTION: Function checks if the address is NULL
  */
 int MP1Node::isNullAddress(Address *addr) {
-	return (memcmp(addr->addr, NULLADDR, 6) == 0 ? 1 : 0);
+  return (memcmp(addr->addr, NULLADDR, 6) == 0 ? 1 : 0);
 }
 
 /**
@@ -665,7 +648,7 @@ Address MP1Node::getJoinAddress() {
  * DESCRIPTION: Initialize the membership list
  */
 void MP1Node::initMemberListTable(Member *memberNode) {
-	memberNode->memberList.clear();
+  memberNode->memberList.clear();
 }
 
 /**
